@@ -1,0 +1,13 @@
+{
+    "name": "tripnovaa/app",
+    "description": "TRIPNOVAA Travel Platform",
+    "require": {
+        "php": ">=7.4",
+        "cashfree/cashfree-pg": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TripNovaa\\": "src/"
+        }
+    }
+}

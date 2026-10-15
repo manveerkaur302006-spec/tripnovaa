@@ -1,6 +1,7 @@
 /vendor/
 composer.lock
 .env
+config/social-oauth.php
 *.log
 .DS_Store
 Thumbs.db

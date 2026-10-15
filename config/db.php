@@ -1,10 +1,10 @@
 <?php
 require_once __DIR__ . '/app.php';
 
-$dbHost = 'localhost';
-$dbName = 'tripnovaa_db';
-$dbUser = 'root';
-$dbPass = '';
+$dbHost = 'sql109.infinityfree.com';
+$dbName = 'if0_43161049_tripnovaa';
+$dbUser = 'if0_43161049';
+$dbPass = '2iII8WlQehrI';
 
 try {
     $pdo = new PDO(

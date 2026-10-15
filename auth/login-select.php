@@ -1,3 +1,8 @@
+<?php
+require_once __DIR__ . '/../config/auth.php';
+$socialError = $_SESSION['social_login_error'] ?? '';
+unset($_SESSION['social_login_error']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,6 +27,7 @@ body{font-family:Poppins,sans-serif;background:#f5f7fa;min-height:100vh;max-widt
 .social p{color:#888;font-size:13px;margin-bottom:16px}
 .social-icons{display:flex;justify-content:center;gap:16px}
 .social-icons a{width:44px;height:44px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.1);color:#333;font-size:18px;text-decoration:none}
+.social-error{background:#fee;color:#b42318;padding:10px 12px;border-radius:8px;font-size:12px;margin:0 auto 16px;max-width:340px}
 </style>
 </head>
 <body>
@@ -43,10 +49,10 @@ body{font-family:Poppins,sans-serif;background:#f5f7fa;min-height:100vh;max-widt
 </div>
 <div class="social">
 <p>or continue with</p>
+<?php if ($socialError): ?><div class="social-error"><?= e($socialError) ?></div><?php endif; ?>
 <div class="social-icons">
-<a href="#"><i class="fab fa-google"></i></a>
-<a href="#"><i class="fab fa-facebook-f"></i></a>
-<a href="#"><i class="fab fa-apple"></i></a>
+<a href="social-login.php?provider=google" aria-label="Continue with Google"><i class="fab fa-google"></i></a>
+<a href="social-login.php?provider=facebook" aria-label="Continue with Facebook"><i class="fab fa-facebook-f"></i></a>
 </div>
 </div>
 </body>

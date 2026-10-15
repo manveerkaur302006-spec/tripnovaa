@@ -92,7 +92,7 @@ body{font-family:Poppins,sans-serif;background:#f5f7fa;max-width:430px;margin:0 
 <a href="group-tours.php" class="svc"><div class="svc-icon"><i class="fas fa-route"></i></div><span>Tours</span></a>
 </div>
 <div class="section">
-<div class="section-head"><h3>Popular Destinations</h3><a href="#">View All</a></div>
+<div class="section-head"><h3>Popular Destinations</h3><a href="destinations.php">View All</a></div>
 <div class="dest-scroll">
 <?php foreach ($destinations as $d): ?>
 <a href="plan-trip.php?to=<?= urlencode($d['name']) ?>" class="dest-card">

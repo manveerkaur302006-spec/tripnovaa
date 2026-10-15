@@ -4,6 +4,7 @@ requireRole('customer');
 $user = currentUser();
 
 $fares = ['bike' => 45, 'auto' => 75, 'mini' => 120, 'sedan' => 200];
+$fareRules = ['bike' => ['base' => 25, 'per_km' => 8], 'auto' => ['base' => 35, 'per_km' => 12], 'mini' => ['base' => 55, 'per_km' => 16], 'sedan' => ['base' => 80, 'per_km' => 22]];
 $saved = db()->prepare('SELECT * FROM saved_locations WHERE user_id = ?');
 $saved->execute([$user['id']]);
 $locations = $saved->fetchAll();
@@ -13,9 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $drop = trim($_POST['drop'] ?? '');
     $vehicle = $_POST['vehicle_type'] ?? 'bike';
     $payment = $_POST['payment_method'] ?? 'cash';
-    $fare = $fares[$vehicle] ?? 45;
+    $distance = filter_var($_POST['distance_km'] ?? null, FILTER_VALIDATE_FLOAT);
+    $rule = $fareRules[$vehicle] ?? $fareRules['bike'];
 
-    if ($drop) {
+    if ($drop && $distance !== false && $distance > 0 && $distance <= 1000) {
+        $fare = (int) ceil($rule['base'] + ($distance * $rule['per_km']));
         $stmt = db()->prepare('INSERT INTO rides (customer_id, pickup_address, drop_address, pickup_lat, pickup_lng, drop_lat, drop_lng, vehicle_type, fare, status, payment_method) VALUES (?,?,?,?,?,?,?,?,?,"searching",?)');
         $stmt->execute([$user['id'], $pickup, $drop, DEFAULT_LAT, DEFAULT_LNG, DEFAULT_LAT + 0.05, DEFAULT_LNG + 0.05, $vehicle, $fare, $payment]);
         $rideId = (int) db()->lastInsertId();
@@ -48,6 +51,7 @@ body{font-family:Poppins,sans-serif;max-width:430px;margin:0 auto}
 .veh{border:2px solid #eee;border-radius:10px;padding:10px;min-width:70px;text-align:center;cursor:pointer;font-size:12px}
 .veh.active{border-color:#007BFF;background:#e3f2fd}
 .veh input{display:none}
+.fare{color:#F27B21;font-weight:600;white-space:nowrap}.estimate-note{font-size:11px;color:#888;margin:-4px 0 8px}
 .pay{font-size:13px;color:#666;margin:8px 0}
 .btn{width:100%;padding:16px;background:#F27B21;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px}
 </style>
@@ -58,6 +62,7 @@ body{font-family:Poppins,sans-serif;max-width:430px;margin:0 auto}
 <form class="panel" method="POST">
 <div class="field"><input name="pickup" id="pickup" value="Current Location" placeholder="Pickup"></div>
 <div class="field"><input name="drop" id="drop" placeholder="Where to? Enter destination" required></div>
+<input type="hidden" name="distance_km" id="distance_km">
 <div class="saved">
 <?php foreach ($locations as $loc): ?>
 <div class="saved-item" onclick="document.getElementById('drop').value='<?= e($loc['address']) ?>'"><i class="fas fa-<?= $loc['label']==='Home'?'home':($loc['label']==='Work'?'briefcase':'plane') ?>" style="color:#007BFF"></i><div><strong><?= e($loc['label']) ?></strong><div style="color:#888;font-size:11px"><?= e($loc['address']) ?></div></div></div>
@@ -68,6 +73,7 @@ body{font-family:Poppins,sans-serif;max-width:430px;margin:0 auto}
 <label class="veh <?= $type==='bike'?'active':'' ?>"><input type="radio" name="vehicle_type" value="<?= $type ?>" <?= $type==='bike'?'checked':'' ?>><div><?= ucfirst($type) ?></div><div style="color:#F27B21;font-weight:600">₹<?= $price ?></div></label>
 <?php endforeach; ?>
 </div>
+<p class="estimate-note" id="estimate_note">Choose a destination to see fare estimates.</p>
 <div class="pay">Payment: <select name="payment_method"><option value="cash">Cash - Personal</option><option value="upi">UPI</option><option value="card">Card</option></select></div>
 <button type="submit" class="btn">Find Riders</button>
 </form>
@@ -76,8 +82,34 @@ body{font-family:Poppins,sans-serif;max-width:430px;margin:0 auto}
 const map=L.map('map').setView([12.9716,77.5946],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 const pickup=L.marker([12.9716,77.5946]).addTo(map).bindPopup('Current Location');
-if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{map.setView([p.coords.latitude,p.coords.longitude],14);pickup.setLatLng([p.coords.latitude,p.coords.longitude]);});}
+let pickupCoords=[12.9716,77.5946], routeLine, destinationMarker;
+const distanceInput=document.getElementById('distance_km');
+const note=document.getElementById('estimate_note');
+const rates={bike:[25,8],auto:[35,12],mini:[55,16],sedan:[80,22]};
+document.querySelectorAll('.veh div:last-child').forEach(el=>el.textContent='Enter destination');
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{pickupCoords=[p.coords.latitude,p.coords.longitude];map.setView(pickupCoords,14);pickup.setLatLng(pickupCoords);});}
 document.querySelectorAll('.veh').forEach(v=>{v.addEventListener('click',()=>{document.querySelectorAll('.veh').forEach(x=>x.classList.remove('active'));v.classList.add('active');});});
+function showFares(distance){
+  document.querySelectorAll('input[name="vehicle_type"]').forEach(input=>{const rate=rates[input.value], fare=Math.ceil(rate[0]+distance*rate[1]);input.closest('.veh').querySelector('div:last-child').textContent='₹'+fare;});
+  if(note) note.textContent=distance.toFixed(1)+' km route estimate. Final fare may change if the route changes.';
+}
+async function estimateRoute(){
+  const query=document.getElementById('drop').value.trim(); if(!query)return;
+  if(note) note.textContent='Finding route and fare estimates…'; distanceInput.value='';
+  try {
+    const places=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(query)).then(r=>r.json());
+    if(!places.length)throw new Error('not found');
+    const dest=[Number(places[0].lat),Number(places[0].lon)];
+    const data=await fetch('https://router.project-osrm.org/route/v1/driving/'+pickupCoords[1]+','+pickupCoords[0]+';'+dest[1]+','+dest[0]+'?overview=full&geometries=geojson').then(r=>r.json());
+    if(!data.routes||!data.routes.length)throw new Error('no route');
+    const route=data.routes[0],distance=route.distance/1000; distanceInput.value=distance.toFixed(2); showFares(distance);
+    if(routeLine)map.removeLayer(routeLine);if(destinationMarker)map.removeLayer(destinationMarker);
+    destinationMarker=L.marker(dest).addTo(map);routeLine=L.geoJSON(route.geometry,{style:{color:'#007BFF',weight:4}}).addTo(map);map.fitBounds(routeLine.getBounds(),{padding:[25,25]});
+  } catch(error) { if(note) note.textContent='Could not calculate this route. Please enter a more specific destination.'; }
+}
+document.getElementById('drop').addEventListener('change',estimateRoute);
+document.querySelectorAll('.saved-item').forEach(item=>item.addEventListener('click',()=>setTimeout(estimateRoute,0)));
+document.querySelector('form').addEventListener('submit',event=>{if(!distanceInput.value){event.preventDefault();if(note) note.textContent='Please choose a valid destination so we can calculate the route first.';document.getElementById('drop').focus();}});
 </script>
 </body>
 </html>

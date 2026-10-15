@@ -1,8 +1,5 @@
 -- TRIPNOVAA Database Schema + Seed Data
--- Import via phpMyAdmin or: mysql -u root < database/tripnovaa.sql
-
-CREATE DATABASE IF NOT EXISTS tripnovaa_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE tripnovaa_db;
+-- InfinityFree Compatible
 
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS admin_logs, tour_booking_seats, tour_itinerary, tour_seats, tour_bookings, tour_packages,

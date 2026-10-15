@@ -5,7 +5,7 @@ $user = currentUser();
 $defaultTo = $_GET['to'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $stmt = db()->prepare('INSERT INTO trip_plans (customer_id, from_city, to_city, travelers, start_date, end_date, budget_min, budget_max, places, status) VALUES (?,?,?,?,?,?,?,?,"draft")');
+    $stmt = db()->prepare('INSERT INTO trip_plans (customer_id, from_city, to_city, travelers, start_date, end_date, budget_min, budget_max, places, status) VALUES (?,?,?,?,?,?,?,?,?,"draft")');
     $stmt->execute([
         $user['id'], $_POST['from_city'], $_POST['to_city'], (int)$_POST['travelers'],
         $_POST['start_date'], $_POST['end_date'], $_POST['budget_min'], $_POST['budget_max'], $_POST['places']
